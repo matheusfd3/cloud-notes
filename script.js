@@ -211,6 +211,9 @@ elements.list.addEventListener("click", function (event) {
       elements.noteContent.innerHTML = note.content;
       setSelectedNote(id);
       updateAllEditableStates();
+      if (window.innerWidth <= 950) {
+        closeSidebar();
+      }
     }
   }
 });
