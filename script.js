@@ -1,5 +1,14 @@
-// Chave para identificar os dados salvos pela nossa aplicação no navegador.
-const STORAGE_KEY = "cloudnotes_storage";
+import {
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+} from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
+import {
+  ref,
+  set,
+  onValue,
+} from "https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js";
+
+import { auth, db } from "./firebase-config.js";
 
 // Estado carregar notas salvas e exibir.
 const state = {
@@ -9,7 +18,6 @@ const state = {
 
 // Seletores dos elementos HTML
 const elements = {
-  modeIndicator: document.getElementById("mode-indicator"),
   noteTitle: document.getElementById("note-title"),
   noteContent: document.getElementById("note-content"),
   titleWrapper: document.getElementById("title-wrapper"),
@@ -22,6 +30,8 @@ const elements = {
   search: document.getElementById("search-input"),
   btnNew: document.getElementById("btn-new"),
   btnCopy: document.getElementById("btn-copy"),
+  modeIndicator: document.getElementById("mode-indicator"),
+  loadingWrapper: document.getElementById("loading-wrapper"),
 };
 
 // Funções para abrir e fechar a sidebar
@@ -47,32 +57,32 @@ function updateAllEditableStates() {
   updateEditableWrapperState(elements.noteContent, elements.contentWrapper);
 }
 
-// Adiciona ouvintes de input para atualizar wrappers em tempo real
-function attachAllEditableHandlers() {
-  elements.noteTitle.addEventListener("input", function () {
-    updateEditableWrapperState(elements.noteTitle, elements.titleWrapper);
-  });
-
-  elements.noteContent.addEventListener("input", function () {
-    updateEditableWrapperState(elements.noteContent, elements.contentWrapper);
-  });
-}
-
 function setSelectedNote(id = null) {
   state.selectedId = id;
 
-  // Atualiza o texto do indicador de modo
-  if (elements.modeIndicator) {
-    elements.modeIndicator.textContent = id ? "" : "✨";
+  const note = state.notes.find((n) => n.id === id);
+
+  if (note) {
+    elements.noteTitle.innerHTML = note.title;
+    elements.noteContent.innerHTML = note.content;
+    elements.modeIndicator.textContent = "";
+  } else {
+    elements.noteTitle.innerHTML = "";
+    elements.noteContent.innerHTML = "";
+    elements.modeIndicator.textContent = "✨";
+    elements.noteTitle.focus();
   }
+
+  updateAllEditableStates();
 }
 
 function save() {
-  const title = elements.noteTitle.textContent.trim();
+  const title = elements.noteTitle.innerHTML.trim();
   const content = elements.noteContent.innerHTML.trim();
+  const hasTitle = elements.noteTitle.textContent.trim();
   const hasContent = elements.noteContent.textContent.trim();
 
-  if (!title || !hasContent) {
+  if (!hasTitle || !hasContent) {
     alert("Título e conteúdo não podem estar vazios.");
     return;
   }
@@ -82,8 +92,8 @@ function save() {
     const existingNote = state.notes.find((n) => n.id === state.selectedId);
 
     if (existingNote) {
-      existingNote.title = title || "Sem título";
-      existingNote.content = content || "Sem conteúdo";
+      existingNote.title = title;
+      existingNote.content = content;
     }
   } else {
     // Criando uma nova nota
@@ -102,32 +112,57 @@ function save() {
   alert("Nota salva com sucesso!");
 }
 
-function persist() {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state.notes));
-  } catch (error) {
-    console.log("Erro ao salvar no localStorage:", error);
+async function persist() {
+  const user = auth.currentUser;
+
+  if (user) {
+    const notesRef = ref(db, "cloudNotes");
+
+    try {
+      await set(notesRef, state.notes);
+      console.log("Estado salvo com sucesso no Realtime Database!");
+    } catch (error) {
+      console.error("Erro ao salvar o estado:", error);
+    }
+  } else {
+    console.log("Usuário não autenticado. Não é possível salvar dados.");
   }
 }
 
-function load() {
-  try {
-    const storage = localStorage.getItem(STORAGE_KEY);
-    state.notes = storage ? JSON.parse(storage) : [];
-    setSelectedNote(null);
-  } catch (error) {
-    console.log("Erro ao carregar do localStorage:", error);
+function setupNotesListener() {
+  const user = auth.currentUser;
+
+  if (user) {
+    const notesRef = ref(db, "cloudNotes");
+
+    // onValue() configura um listener que será acionado sempre que os dados mudarem
+    onValue(
+      notesRef,
+      (snapshot) => {
+        const data = snapshot.val();
+        state.notes = data ? data : [];
+
+        renderList(elements.search.value);
+        setSelectedNote(state.selectedId);
+
+        elements.loadingWrapper.classList.remove("is-loading");
+      },
+      (error) => {
+        console.error("Erro ao carregar o estado:", error);
+      }
+    );
+  } else {
+    console.log("Usuário não autenticado. Não é possível carregar dados.");
+    // Redirecionar para login ou exibir mensagem
   }
 }
 
 function createNoteItem(note) {
-  const tmp = document.createElement("div");
-  tmp.innerHTML = note.content;
   return `
     <li class="note-item" data-id="${note.id}" data-action="select">
       <div class="note-item-content">
         <span class="note-item-title">${note.title}</span>
-        <span class="note-item-description">${tmp.textContent}</span>
+        <span class="note-item-description">${note.content}</span>
       </div>
 
       <button class="btn-icon" title="Remover" data-action="remove">
@@ -146,14 +181,6 @@ function renderList(filterText = "") {
     .join("");
 
   elements.list.innerHTML = filteredNotes;
-}
-
-function newNote() {
-  setSelectedNote(null);
-  elements.noteTitle.textContent = "";
-  elements.noteContent.textContent = "";
-  updateAllEditableStates();
-  elements.noteTitle.focus();
 }
 
 function copySelected() {
@@ -175,13 +202,21 @@ function copySelected() {
 
 // Eventos
 elements.btnSave.addEventListener("click", save);
-elements.btnNew.addEventListener("click", newNote);
+elements.btnNew.addEventListener("click", () => setSelectedNote());
 elements.btnCopy.addEventListener("click", copySelected);
 elements.btnOpen.addEventListener("click", openSidebar);
 elements.btnCollapse.addEventListener("click", closeSidebar);
 
 elements.search.addEventListener("input", function (event) {
   renderList(event.target.value);
+});
+
+elements.noteTitle.addEventListener("input", function () {
+  updateEditableWrapperState(elements.noteTitle, elements.titleWrapper);
+});
+
+elements.noteContent.addEventListener("input", function () {
+  updateEditableWrapperState(elements.noteContent, elements.contentWrapper);
 });
 
 elements.list.addEventListener("click", function (event) {
@@ -198,36 +233,45 @@ elements.list.addEventListener("click", function (event) {
     renderList(elements.search.value);
     persist();
     if (state.selectedId === id) {
-      newNote();
+      setSelectedNote();
     }
     return;
   }
 
   if (event.target.closest("[data-action='select']")) {
-    const note = state.notes.find((n) => n.id === id);
-
-    if (note) {
-      elements.noteTitle.textContent = note.title;
-      elements.noteContent.innerHTML = note.content;
-      setSelectedNote(id);
-      updateAllEditableStates();
-      if (window.innerWidth <= 950) {
-        closeSidebar();
-      }
+    setSelectedNote(id);
+    if (window.innerWidth <= 950) {
+      closeSidebar();
     }
   }
 });
 
 // Inicialização
 function init() {
-  load();
-  renderList("");
-  attachAllEditableHandlers();
-  updateAllEditableStates();
-
   // Estado inicial: sidebar aberta (desktop) ou fechada (mobile)
   elements.sidebar.classList.remove("open");
   elements.sidebar.classList.remove("collapsed");
+
+  onAuthStateChanged(auth, async (user) => {
+    if (user) {
+      setupNotesListener();
+    } else {
+      let authSuccess = false;
+      const email = "admin@cloudnotes.com";
+      while (!authSuccess) {
+        const password = prompt("Código de acesso:");
+        await signInWithEmailAndPassword(auth, email, password)
+          .then(() => {
+            authSuccess = true;
+          })
+          .catch((error) => {
+            const errorCode = error.code;
+            const errorMessage = error.message;
+            alert("Error [" + errorCode + "]: " + errorMessage);
+          });
+      }
+    }
+  });
 }
 
 // Executa a inicialização ao carregar o script

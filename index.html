@@ -7,8 +7,8 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
+    <link rel="stylesheet" type="text/css" href="style.css" />
     <link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
-    <link rel="stylesheet" href="style.css" />
     <title>Cloud Notes</title>
   </head>
   <body>
@@ -52,7 +52,7 @@
 
       <main class="main">
         <header class="main-header">
-          <span id="mode-indicator" class="mode-indicator">✨</span>
+          <span id="mode-indicator" class="mode-indicator"></span>
           <div class="btn-wrapper">
             <button id="btn-copy" class="btn-outline btn">
               <img src="assets/copy.svg" alt="Copiar" class="icon" />
@@ -84,6 +84,9 @@
         </div>
       </main>
     </div>
-    <script src="script.js"></script>
+    <div id="loading-wrapper" class="loading-wrapper is-loading">
+      <img src="assets/loading.gif" alt="loading" />
+    </div>
+    <script type="module" src="script.js"></script>
   </body>
 </html>
