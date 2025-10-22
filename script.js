@@ -279,7 +279,7 @@ function createNoteItem(note) {
       </div>
 
       <button class="btn-icon" title="Remover" data-action="remove">
-        <img src="assets/remove.svg" alt="Remover" class="icon icon-trash" />
+        <img src="assets/remove.svg" alt="Remover" class="icon-trash" />
       </button>
     </li>
   `;
@@ -333,7 +333,7 @@ function createFileItem(file) {
       <div class="file-actions">
         ${statusSpan}
         <button class="btn-icon" data-action="remove" title="Remover arquivo">
-          <img src="assets/close.svg" alt="Remover" />
+          <img src="assets/close.svg" alt="Remover" class="icon-close" />
         </button>
       </div>
     </li>
