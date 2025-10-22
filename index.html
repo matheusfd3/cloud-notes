@@ -82,6 +82,14 @@
             contenteditable="true"
           ></div>
         </div>
+
+        <div class="file-upload">
+          <label for="file-input" class="btn-primary btn upload-label">
+            <span>📂 Selecione arquivos</span>
+            <input type="file" id="file-input" multiple />
+          </label>
+          <ul id="file-list" class="file-list"></ul>
+        </div>
       </main>
     </div>
 
@@ -96,6 +104,6 @@
       aria-label="Notificações"
     ></div>
 
-    <script type="module" src="script.js"></script>
+    <script type="module" src="./script.js"></script>
   </body>
 </html>
