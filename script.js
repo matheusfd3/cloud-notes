@@ -122,11 +122,11 @@ function setSelectedNote(id = null) {
   const note = state.notes.find((n) => n.id === id);
 
   if (note) {
-    elements.noteTitle.innerHTML = note.title;
+    elements.noteTitle.textContent = note.title;
     elements.noteContent.innerHTML = note.content;
     elements.modeIndicator.textContent = "";
   } else {
-    elements.noteTitle.innerHTML = "";
+    elements.noteTitle.textContent = "";
     elements.noteContent.innerHTML = "";
     elements.modeIndicator.textContent = "✨";
     elements.noteTitle.focus();
@@ -138,12 +138,11 @@ function setSelectedNote(id = null) {
 
 // Salva a nota atual (nova ou editada)
 async function save() {
-  const title = elements.noteTitle.innerHTML.trim();
+  const title = elements.noteTitle.textContent.trim();
   const content = elements.noteContent.innerHTML.trim();
-  const hasTitle = elements.noteTitle.textContent.trim();
   const hasContent = elements.noteContent.textContent.trim();
 
-  if (!hasTitle || !hasContent) {
+  if (!title || !hasContent) {
     showNotification("Título e conteúdo não podem estar vazios.", "error");
     return;
   }
